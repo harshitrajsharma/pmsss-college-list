@@ -37,6 +37,13 @@ async function loadData() {
         filteredColleges = allCollegesData;
         renderFilters(window.__originalFlatData);
         renderCollegeCards(window.__originalFlatData, false);
+        
+        // Apply default high-to-low cutoff sort
+        const cutoffSort = document.getElementById('filter-cutoff-sort');
+        if (cutoffSort) {
+            cutoffSort.value = 'high-to-low';
+            filterAndRenderColleges();
+        }
     } catch (error) {
         console.error('Error loading data:', error);
         document.querySelector('.summary-content').innerHTML = 'Error loading data. Please try again later.';
@@ -235,6 +242,11 @@ function renderFilters(data) {
                 <option value="">Sort by Course Name</option>
                 ${courseNames.map(course => `<option value="${course}">${course}</option>`).join('')}
             </select>
+            <select id="filter-cutoff-sort">
+                <option value="">Sort by Cutoff</option>
+                <option value="low-to-high">Low to High</option>
+                <option value="high-to-low" selected>High to Low</option>
+            </select>
             <select id="filter-view">
                 <option value="gallery">Gallery View</option>
                 <option value="list">List View</option>
@@ -252,6 +264,7 @@ function renderFilters(data) {
         filterAndRenderColleges();
     });
     document.getElementById('filter-sort-course').addEventListener('change', filterAndRenderColleges);
+    document.getElementById('filter-cutoff-sort').addEventListener('change', filterAndRenderColleges);
     document.getElementById('filter-view').addEventListener('change', filterAndRenderColleges);
 }
 
@@ -263,6 +276,7 @@ function filterAndRenderColleges() {
     const accreditation = document.getElementById('filter-accreditation').value;
     const cutoff = parseInt(document.getElementById('filter-cutoff').value, 10);
     const sortCourse = document.getElementById('filter-sort-course').value;
+    const cutoffSort = document.getElementById('filter-cutoff-sort').value;
 
     // Filter the original flat data, not the grouped data
     const filteredFlat = window.__originalFlatData.filter(entry => {
@@ -294,6 +308,25 @@ function filterAndRenderColleges() {
             if (aHasCourse && !bHasCourse) return -1;
             if (!aHasCourse && bHasCourse) return 1;
             return 0;
+        });
+    }
+
+    // Sort by cutoff if selected
+    if (cutoffSort) {
+        grouped.sort((a, b) => {
+            // Handle NA and 0 values
+            const aCutoff = a.lowestCutoff === null || a.lowestCutoff === 0 ? Infinity : a.lowestCutoff;
+            const bCutoff = b.lowestCutoff === null || b.lowestCutoff === 0 ? Infinity : b.lowestCutoff;
+            
+            // If both are NA/0, maintain original order
+            if (aCutoff === Infinity && bCutoff === Infinity) return 0;
+            
+            // If only one is NA/0, put it at the end
+            if (aCutoff === Infinity) return 1;
+            if (bCutoff === Infinity) return -1;
+            
+            // Normal sorting for valid cutoff values
+            return cutoffSort === 'low-to-high' ? aCutoff - bCutoff : bCutoff - aCutoff;
         });
     }
 
